@@ -1,21 +1,8 @@
-library ieee;
-use ieee.std_logic_1164.all;
-use ieee.numeric_std.all;
-
-package types is
-	type img	is array(0 to 783) of std_logic;
-	--signal test : img;
-	type weightType	is array(0 to 1569) of std_logic_VECTOR(14 downto 0);
-	--signal weight : weightType;
-	type layerarray	is array(1 downto 0) of std_logic_vector(17 downto 0);
-
-end package;
-
-
 
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
+library work;
 use work.types.all;
 
 
@@ -27,8 +14,8 @@ port
 		output : out std_LOGIC;
 		reset : in std_LOGIC;
 		oSum : out std_LOGIC_VECTOR(17 downto 0);
-		stout : out std_LOGIC_vector(2 downto 0);
-		selecttest : in std_logic_vecTOR(1 downto 0);
+		stout : out std_LOGIC_vector(1 downto 0);
+		selecttest : in std_logic_vecTOR(1 downto 0):="00";
 		testO : out img;
 		layerO: out layerarray
 		
@@ -37,131 +24,14 @@ port
 end entity;
 
 architecture rtl of ann is
-function sigmoid18 (X : std_logic_vector)
-                 return std_logic_vector is  
-  variable temp : std_logic_vecTOR(17 dowNTO 0);
-  variable tem2 : std_logic_vecTOR(7 dowNTO 0);
 
-begin
-if X(16 downto 10) /= "0000000" then --Xl>="000100" then-- lower -4 and higher 4 -->0 & 1
-	temp:=(8=>not X(17),others=>'0' );
-else --  (-4 4) -> [0 1]
-	if X(17)='1' then--negative
-				--s   --xl--  xr:+4  div8
-		--return '0'&"000000000"  & '0'&(X(9 downto 8) xor "11")&(std_logic_vector(unsigned(X(7  downto 0) xor "11111111")+1)(7 downto 3));
-		temp(17 downto 7):=(others=>'0');
-		temp(6 downto 5) :=X(9 downto 8) xor "11";
-		tem2:=std_logic_vector(to_unsigned(to_integer(unsigned(X(7  downto 0) xor "11111111"))+1,8));
-		temp(4 downto 0) :=tem2(7 downto 3);
-
-	else--positive
-				--s   --xl--  xr:+4  div8
-		--return '0'&"000000000"  & '1'&(X(9 downto 8) xor "00")&X(7 downto 3);
-		temp(17 downto 8):=(others=>'0');
-		temp(7):='1';
-		temp(6 downto 0) :=X(9 downto 3);
-
-	end if;
-end if;
-return temp;
-
-end sigmoid18;
------------------------------------------------
-function sum1815 (	x : std_logic_vector;--18
-						y : std_logic_vector)--15
-                 return std_logic_vector is--18
-variable xt : unsigned(16 downto 0);
-variable yt : unsigned(13 downto 0);
-
-begin
-xt:=unsigned(x(16 downto 0));
-yt:=unsigned(y(13 dowNTO 0));
-
-if ((x(17) xor y(14))='0') then
-	--sum
-	return (x(17) & (std_logic_vector(xt+yt)));
-else
-	--abs(X)>abs(y)
-	if xt>yt then	
-		return (x(17) & (	std_logic_vector(xt-yt)	));
-	elsif xt=yt then 
-		return "000000000000000000";
-	else
-		return (y(14) & (std_logic_vector(yt-xt)));
-	end if;
-end if;
-end sum1815;
------------------------------------------
-function sum1515 (	x : std_logic_vector;--15
-						y : std_logic_vector)--15
-                 return std_logic_vector is--18
-variable xt : unsigned(13 downto 0);
-variable yt : unsigned(13 downto 0);
-variable re : std_logic_vector(17 downto 0);
-begin
-xt:=unsigned(x(13 downto 0));
-yt:=unsigned(y(13 dowNTO 0));
-re:=(others=>'0');
-if ((x(14) xor y(14))='0') then --  (++ or --)
-	--sum
-	re(17):=x(14);
-	re(14 downto 0):=std_logic_vector(to_unsigned(to_integer(xt)+to_integer(yt),15));
-else									  --	(-+ or +-)
-	--abs(X)>abs(y)
-	if xt>yt then	
-		re(17):=x(14);
-		re(13 downto 0):=std_logic_vector(xt-yt);
-	elsif xt=yt then 
-		re:=(others=>'0');
-	else
-		re(17):=y(14);
-		re(13 downto 0):=std_logic_vector(yt-xt);
-	end if;
-end if;
-return re;
-end sum1515;
-------------------------------------------
-function mulIw1 (	I : std_logic;
-						w1 : std_logic_vector)
-                 return std_logic_vector is
-variable temp : std_logic_vecTOR(14 dowNTO 0);
-begin				--14 13 12 11 10 9  8  7  6  5  4  3  2  1  0
-	temp:= w1 and (I& I& I& I& I& I& I& I& I& I& I& I& I& I& I); 
-	return temp;
-end mulIw1;
----------------------------------------
-function mullw2 (l1 : std_logic_vector;--18 bit (first 9 bit = 0 > cause: sigmoid)
-						w2 : std_logic_vector)--15 bit
-                 return std_logic_vector is--15 bit
-variable o : std_logic_vecTOR(14 downto 0);
-variable t : std_logic_vecTOR(22 downto 0);
-
-begin		
-	t:=std_logic_vector(unsigned(l1(8 downto 0))*unsigned(w2(13 downto 0)));
-	o(14):= w2(14);
-	o(13 downto 0):= t(21 downto 8);
-	return o;
-end mullw2;
------------------------------------------------------------------
-function sumofall (test: Img; weight: weightType)
-return layerarray is
-variable flayer : layerarray;
-begin
-flayer:= ((others=> (others=>'0')));
-soa: for i in 0 to 783 generate
-	flayer(0):=sum1815(x=>flayer(0),y=>mulIw1(I=>test(i),w1=>weight(i*2)));
-	flayer(1):=sum1815(x=>flayer(1),y=>mulIw1(I=>test(i),w1=>weight(i*2+1)));
-end generate soa;
-return flayer;
-end sumofall;
---------------------------------------------------------------
 signal layer : layerarray := ((others=> (others=>'0')));
 
 signal outputSum : std_LOGIC_VECTOR(17 downto 0):=(others=>'0');
 
 
 signal outputSignal : std_logic:='0';
-signal state : std_logic_vector(2 downto 0):="000";	
+signal state : std_logic_vector(1 downto 0):="00";	
 
 signal weight :  weightType;
 signal test   :  img;
@@ -185,54 +55,40 @@ begin
 	elsif selecttest="10" then 
 		test<= ('0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '1', '1', '1', '1', '1', '1', '1', '1', '1', '1', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0');
 		--triangle
-	else
-		test<=test;
 	end if;
 end process;
 
 process(reset,clk)
+variable i : integer range 0 to 784:=0;
 	begin 
 	if(reset = '1') then
+		i:=0;
+		state<="00";
 		layer		<=((others=> (others=>'0')));
 		outputSum<=(others=>'0');
 		outputSignal<='0';
-		state<="000";
 	elsif(rising_edge(clk)) then
 		case state is 
-			when "000"=>
---				for i in 0 to 783 loop
---						layer(0)<=sum1815(x=>layer(0),y=>mulIw1(I=>test(i),w1=>weight(i*2)));
---						layer(1)<=sum1815(x=>layer(1),y=>mulIw1(I=>test(i),w1=>weight(i*2+1)));
---				end loop;
-				layer<=sumofall(test=>test,weight=>weight);
-				-----------------------
---				layer(0)<="000"&mulIw1(I=>test(0),w1=>weight(1));
---				layer(1)<=sum1815(layer(1),weight(0));
-				
-				-----------------------
-				state <="001";
-			when "001"=>
-				layer(0)<=sigmoid18(layer(0));
-				layer(1)<=sigmoid18(layer(1));
-				state <="010";
-			when "010"=>
-				state <="011";
-			when "011"=>
-			outputSum<=sum1515(x=>mullw2(	l1=>layer(0),w2=>weight(1568)	),y=>mullw2(l1=>layer(1),w2=>weight(1569)));
-			state <="100";
-			when "100"=>
+			when "00"=>
+				if i<=783 then
+					layer(0)<=sum1815(x=>layer(0),y=>mulIw1(I=>test(i),w1=>weight(i*2)));
+					layer(1)<=sum1815(x=>layer(1),y=>mulIw1(I=>test(i),w1=>weight(i*2+1)));
+					i:=i+1;
+				else	
+					layer(0)<=sigmoid18(layer(0));
+					layer(1)<=sigmoid18(layer(1));
+					state <="01";
+				end if;
+			when "01"=>
+				outputSum<=sum1515(x=>mullw2(	l1=>layer(0),w2=>weight(1568)	),y=>mullw2(l1=>layer(1),w2=>weight(1569)));
+				state <="10";
+			when "10"=>
 			outputSum<=sigmoid18(outputSum);
-			state<="101";
-			when "101"=>
-			state<="110";
-			if ((outputSum(8) or outputSum(7))='1') then
-				outputSignal<='1';
-			else
-				outputSignal<='0';
-			end if;
+			state<="11";
 			when others=>
-			
+			outputSignal<=(outputSum(8) or outputSum(7));
 		end case;
 	end if;
 end process;
+
 end rtl;
